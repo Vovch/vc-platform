@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +63,46 @@ namespace VirtoCommerce.Platform.Web.Security
             _externalSigninProviderConfigs = externalSigninProviderConfigs;
         }
 
+        public virtual async Task<ExternalLoginInfo> GetExternalLoginInfoAsync(string expectedXsrf = null)
+        {
+            var auth = await _signInManager.Context.AuthenticateAsync(IdentityConstants.ExternalScheme);
+            var items = auth?.Properties?.Items;
+
+            if (auth?.Principal == null || items == null || !items.ContainsKey("LoginProvider"))
+            {
+                return null;
+            }
+
+            //if (expectedXsrf != null)
+            //{
+            //    if (!items.ContainsKey(XsrfKey))
+            //    {
+            //        return null;
+            //    }
+            //    var userId = items[XsrfKey] as string;
+            //    if (userId != expectedXsrf)
+            //    {
+            //        return null;
+            //    }
+            //}
+
+            //var providerKey = auth.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            var providerKey = auth.Principal.FindFirstValue("sub");
+            var provider = items["LoginProvider"] as string;
+            if (providerKey == null || provider == null)
+            {
+                return null;
+            }
+
+            //var providerDisplayName = (await GetExternalAuthenticationSchemesAsync()).FirstOrDefault(p => p.Name == provider)?.DisplayName
+            //                          ?? provider;
+            return new ExternalLoginInfo(auth.Principal, provider, providerKey, "OpenIdConnect")
+            {
+                AuthenticationTokens = auth.Properties.GetTokens(),
+                AuthenticationProperties = auth.Properties
+            };
+        }
+
         public virtual async Task<string> ProcessCallbackAsync(string returnUrl, IUrlHelper urlHelper)
         {
             _urlHelper = urlHelper;
@@ -71,7 +112,8 @@ namespace VirtoCommerce.Platform.Web.Security
                 return _urlHelper.Action("index", "Home");
             }
 
-            var externalLoginInfo = await _signInManager.GetExternalLoginInfoAsync();
+            //var externalLoginInfo = await _signInManager.GetExternalLoginInfoAsync();
+            var externalLoginInfo = await GetExternalLoginInfoAsync();
 
             if (!TryGetUserInfo(externalLoginInfo, out var userName, out var userEmail, out var redirectUrl))
             {
@@ -159,8 +201,8 @@ namespace VirtoCommerce.Platform.Web.Security
                 platformUser = await FindUserByEmail(userEmail);
             }
 
-            var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
-            if (platformUser == null && providerConfig?.Provider.AllowCreateNewUser == true)
+            //var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
+            if (platformUser == null /*&& providerConfig?.Provider.AllowCreateNewUser == true*/)
             {
                 platformUser = new ApplicationUser
                 {
@@ -180,10 +222,11 @@ namespace VirtoCommerce.Platform.Web.Security
             return platformUser;
         }
 
-        [Obsolete("Not being called. Register external provider configuration and implement ExternalSigninProveder.GetUserName")]
+        //[Obsolete("Not being called. Register external provider configuration and implement ExternalSigninProveder.GetUserName")]
         protected virtual string GetUserName(ExternalLoginInfo externalLoginInfo)
         {
-            var userName = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Upn);
+            //var userName = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Upn);
+            var userName = externalLoginInfo.Principal.FindFirstValue("upn");
 
             if (string.IsNullOrWhiteSpace(userName) && _azureAdOptions.UsePreferredUsername)
             {
@@ -270,13 +313,17 @@ namespace VirtoCommerce.Platform.Web.Security
                 return false;
             }
 
-            var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
-            if (providerConfig?.Provider is not null)
-            {
-                userName = providerConfig.Provider.GetUserName(externalLoginInfo);
-                userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
-                            (userName.IsValidEmail() ? userName : null);
-            }
+            //var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
+            //if (providerConfig?.Provider is not null)
+            //{
+            //    userName = providerConfig.Provider.GetUserName(externalLoginInfo);
+            //    userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
+            //               (userName.IsValidEmail() ? userName : null);
+            //}
+
+            userName = GetUserName(externalLoginInfo);
+            userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
+                        (userName.IsValidEmail() ? userName : null);
 
             if (string.IsNullOrWhiteSpace(userName))
             {
