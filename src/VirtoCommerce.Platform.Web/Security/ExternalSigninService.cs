@@ -201,8 +201,8 @@ namespace VirtoCommerce.Platform.Web.Security
                 platformUser = await FindUserByEmail(userEmail);
             }
 
-            //var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
-            if (platformUser == null /*&& providerConfig?.Provider.AllowCreateNewUser == true*/)
+            var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
+            if (platformUser == null && providerConfig?.Provider.AllowCreateNewUser == true)
             {
                 platformUser = new ApplicationUser
                 {
@@ -225,9 +225,8 @@ namespace VirtoCommerce.Platform.Web.Security
         //[Obsolete("Not being called. Register external provider configuration and implement ExternalSigninProveder.GetUserName")]
         protected virtual string GetUserName(ExternalLoginInfo externalLoginInfo)
         {
-            //var userName = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Upn);
-            var userName = externalLoginInfo.Principal.FindFirstValue("upn");
-
+            var userName = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Upn);
+            
             if (string.IsNullOrWhiteSpace(userName) && _azureAdOptions.UsePreferredUsername)
             {
                 userName = externalLoginInfo.Principal.FindFirstValue("preferred_username");
@@ -313,18 +312,14 @@ namespace VirtoCommerce.Platform.Web.Security
                 return false;
             }
 
-            //var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
-            //if (providerConfig?.Provider is not null)
-            //{
-            //    userName = providerConfig.Provider.GetUserName(externalLoginInfo);
-            //    userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
-            //               (userName.IsValidEmail() ? userName : null);
-            //}
-
-            userName = GetUserName(externalLoginInfo);
-            userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
-                        (userName.IsValidEmail() ? userName : null);
-
+            var providerConfig = GetExternalSigninProviderConfiguration(externalLoginInfo);
+            if (providerConfig?.Provider is not null)
+            {
+                userName = providerConfig.Provider.GetUserName(externalLoginInfo);
+                userEmail = externalLoginInfo.Principal.FindFirstValue(ClaimTypes.Email) ??
+                           (userName.IsValidEmail() ? userName : null);
+            }
+            
             if (string.IsNullOrWhiteSpace(userName))
             {
                 throw new InvalidOperationException("External login provider does not return user name.");

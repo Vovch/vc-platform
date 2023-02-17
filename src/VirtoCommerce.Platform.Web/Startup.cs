@@ -12,7 +12,6 @@ using System.Threading.Tasks;
 using Microsoft.ApplicationInsights.Extensibility.Implementation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -308,20 +307,6 @@ namespace VirtoCommerce.Platform.Web
                     IssuerSigningKey = publicKey
                 };
             });
-
-            var openIdConnectSection = Configuration.GetSection("OpenIdConnect");
-            if (openIdConnectSection.GetChildren().Any())
-            {
-                var options = new OpenIdConnectOptions();
-                openIdConnectSection.Bind(options);
-
-                authBuilder.AddOpenIdConnect("OpenIdConnect", "RNT Login", oidcOptions =>
-                {
-                    oidcOptions.Authority = options.Authority;
-                    oidcOptions.MetadataAddress = options.MetadataAddress;
-                    oidcOptions.ClientId = options.ClientId;
-                });
-            }
 
             services.AddOptions<Core.Security.AuthorizationOptions>().Bind(Configuration.GetSection("Authorization")).ValidateDataAnnotations();
             var authorizationOptions = Configuration.GetSection("Authorization").Get<Core.Security.AuthorizationOptions>();
